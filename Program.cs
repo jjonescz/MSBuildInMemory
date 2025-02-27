@@ -1,4 +1,4 @@
-using System.Xml;
+﻿using System.Xml;
 using Microsoft.Build.Construction;
 using Microsoft.Build.Definition;
 using Microsoft.Build.Execution;
@@ -13,12 +13,42 @@ BuildInMemoryProject();
 static void BuildInMemoryProject()
 {
     var projectText = """
-        <Project Sdk="Microsoft.NET.Sdk">
+        <Project>
+
+            <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
             <PropertyGroup>
                 <TargetFramework>net9.0</TargetFramework>
                 <ImplicitUsings>enable</ImplicitUsings>
                 <Nullable>enable</Nullable>
             </PropertyGroup>
+            
+            <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+            <!-- Override targets which don't work with project files that are not present on disk. -->
+
+            <Target Name="_FilterRestoreGraphProjectInputItems"
+                    DependsOnTargets="_LoadRestoreGraphEntryPoints"
+                    Returns="@(FilteredRestoreGraphProjectInputItems)">
+                <ItemGroup>
+                    <FilteredRestoreGraphProjectInputItems Include="@(RestoreGraphProjectInputItems)" />
+                </ItemGroup>
+            </Target>
+
+            <Target Name="_GetAllRestoreProjectPathItems"
+                    DependsOnTargets="_FilterRestoreGraphProjectInputItems"
+                    Returns="@(_RestoreProjectPathItems)">
+                <ItemGroup>
+                    <_RestoreProjectPathItems Include="@(FilteredRestoreGraphProjectInputItems)" />
+                </ItemGroup>
+            </Target>
+
+            <Target Name="_GenerateRestoreGraph"
+                    DependsOnTargets="_FilterRestoreGraphProjectInputItems;_GetAllRestoreProjectPathItems;_GenerateRestoreGraphProjectEntry;_GenerateProjectRestoreGraph"
+                    Returns="@(_RestoreGraphEntry)">
+                <!-- Output from dependency _GenerateRestoreGraphProjectEntry and _GenerateProjectRestoreGraph -->
+            </Target>
+
         </Project>
         """;
 
