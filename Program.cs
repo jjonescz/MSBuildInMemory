@@ -21,6 +21,7 @@ static void BuildInMemoryProject()
                 <TargetFramework>net9.0</TargetFramework>
                 <ImplicitUsings>enable</ImplicitUsings>
                 <Nullable>enable</Nullable>
+                <RestoreUseStaticGraphEvaluation>true</RestoreUseStaticGraphEvaluation>
             </PropertyGroup>
             
             <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
