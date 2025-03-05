@@ -59,7 +59,11 @@ static void BuildInMemoryProject()
 
     var buildParameters = new BuildParameters
     {
-        Loggers = [new ConsoleLogger(LoggerVerbosity.Normal)],
+        Loggers =
+        [
+            new BinaryLogger { Parameters = "msbuild.binlog" },
+            new ConsoleLogger(LoggerVerbosity.Quiet),
+        ],
     };
     var buildRequest = new BuildRequestData(
         ProjectInstance.FromProjectRootElement(projectRoot, new ProjectOptions()),
