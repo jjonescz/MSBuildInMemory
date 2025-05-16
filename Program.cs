@@ -1,6 +1,7 @@
 ﻿using System.Xml;
 using Microsoft.Build.Construction;
 using Microsoft.Build.Definition;
+using Microsoft.Build.Evaluation;
 using Microsoft.Build.Execution;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Locator;
@@ -10,7 +11,7 @@ MSBuildLocator.RegisterDefaults();
 
 BuildInMemoryProject();
 
-static void BuildInMemoryProject()
+void BuildInMemoryProject()
 {
     var projectText = """
         <Project>
@@ -52,22 +53,51 @@ static void BuildInMemoryProject()
         </Project>
         """;
 
-    var xmlReader = XmlReader.Create(new StringReader(projectText));
-    var projectRoot = ProjectRootElement.Create(xmlReader);
-    Directory.CreateDirectory(Path.Join(Environment.CurrentDirectory, "test"));
-    projectRoot.FullPath = Path.Join(Environment.CurrentDirectory, "test", "test.csproj");
-
-    var buildParameters = new BuildParameters
+    var loggers = new ILogger[]
     {
-        Loggers =
-        [
-            new BinaryLogger { Parameters = "msbuild.binlog" },
-            new ConsoleLogger(LoggerVerbosity.Quiet),
-        ],
+        new BinaryLogger { Parameters = "msbuild.binlog" },
+        new ConsoleLogger(LoggerVerbosity.Quiet),
+    };
+
+    var projectCollection = new ProjectCollection(
+        globalProperties: new Dictionary<string, string>(),
+        loggers: loggers,
+        ToolsetDefinitionLocations.Default
+    );
+
+    ProjectRootElement projectRoot;
+    var projectDir = Path.Join(Environment.CurrentDirectory, "test");
+    Directory.CreateDirectory(projectDir);
+    var projectFilePath = Path.Join(Environment.CurrentDirectory, "test", "test.csproj");
+    if (args.Contains("--write"))
+    {
+        File.WriteAllText(projectFilePath, projectText);
+        projectRoot = ProjectRootElement.Open(projectFilePath, projectCollection);
+    }
+    else
+    {
+        var xmlReader = XmlReader.Create(new StringReader(projectText));
+        projectRoot = ProjectRootElement.Create(xmlReader, projectCollection);
+        projectRoot.FullPath = projectFilePath;
+    }
+
+    var buildParameters = new BuildParameters(projectCollection)
+    {
+        Loggers = projectCollection.Loggers,
+        LogTaskInputs = true,
+        LogInitialPropertiesAndItems = true,
+        DetailedSummary = true,
+        OnlyLogCriticalEvents = false,
     };
     var buildRequest = new BuildRequestData(
-        ProjectInstance.FromProjectRootElement(projectRoot, new ProjectOptions()),
+        ProjectInstance.FromProjectRootElement(projectRoot, new ProjectOptions
+        {
+            LoadSettings = ProjectLoadSettings.RecordEvaluatedItemElements,
+            ProjectCollection = projectCollection,
+        }),
         targetsToBuild: ["Restore", "Build"]);
     var result = BuildManager.DefaultBuildManager.Build(buildParameters, buildRequest);
     Console.WriteLine(result.OverallResult);
+
+    projectCollection.Dispose();
 }
