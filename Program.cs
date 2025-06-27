@@ -110,7 +110,6 @@ void BuildInMemoryProject()
         DetailedSummary = true,
         OnlyLogCriticalEvents = false,
     };
-    BuildManager.DefaultBuildManager.BeginBuild(buildParameters);
 
     // Restore
     {
@@ -128,6 +127,7 @@ void BuildInMemoryProject()
             targetsToBuild: ["Restore"],
             hostServices: null,
             BuildRequestDataFlags.ClearCachesAfterBuild | BuildRequestDataFlags.SkipNonexistentTargets | BuildRequestDataFlags.IgnoreMissingEmptyAndInvalidImports | BuildRequestDataFlags.FailOnUnresolvedSdk);
+        BuildManager.DefaultBuildManager.BeginBuild(buildParameters);
         var result = BuildManager.DefaultBuildManager.BuildRequest(buildRequest);
         Console.WriteLine($"Restore result: {result.OverallResult}");
         if (result.OverallResult != BuildResultCode.Success)
