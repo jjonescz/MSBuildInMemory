@@ -110,15 +110,50 @@ void BuildInMemoryProject()
         DetailedSummary = true,
         OnlyLogCriticalEvents = false,
     };
-    var buildRequest = new BuildRequestData(
-        ProjectInstance.FromProjectRootElement(projectRoot, new ProjectOptions
-        {
-            LoadSettings = ProjectLoadSettings.RecordEvaluatedItemElements,
-            ProjectCollection = projectCollection,
-        }),
-        targetsToBuild: ["Restore", "Build"]);
-    var result = BuildManager.DefaultBuildManager.Build(buildParameters, buildRequest);
-    Console.WriteLine(result.OverallResult);
+    BuildManager.DefaultBuildManager.BeginBuild(buildParameters);
 
+    // Restore
+    {
+        var buildRequest = new BuildRequestData(
+            ProjectInstance.FromProjectRootElement(projectRoot, new ProjectOptions
+            {
+                LoadSettings = ProjectLoadSettings.RecordEvaluatedItemElements,
+                ProjectCollection = projectCollection,
+                GlobalProperties = new Dictionary<string, string>(projectCollection.GlobalProperties, StringComparer.OrdinalIgnoreCase)
+                {
+                    ["MSBuildRestoreSessionId"] = Guid.NewGuid().ToString("D"),
+                    ["MSBuildIsRestoring"] = bool.TrueString,
+                },
+            }),
+            targetsToBuild: ["Restore"],
+            hostServices: null,
+            BuildRequestDataFlags.ClearCachesAfterBuild | BuildRequestDataFlags.SkipNonexistentTargets | BuildRequestDataFlags.IgnoreMissingEmptyAndInvalidImports | BuildRequestDataFlags.FailOnUnresolvedSdk);
+        var result = BuildManager.DefaultBuildManager.BuildRequest(buildRequest);
+        Console.WriteLine($"Restore result: {result.OverallResult}");
+        if (result.OverallResult != BuildResultCode.Success)
+        {
+            return;
+        }
+    }
+
+    // Build
+    {
+        var buildRequest = new BuildRequestData(
+            ProjectInstance.FromProjectRootElement(projectRoot, new ProjectOptions
+            {
+                LoadSettings = ProjectLoadSettings.RecordEvaluatedItemElements,
+                ProjectCollection = projectCollection,
+                GlobalProperties = new Dictionary<string, string>(projectCollection.GlobalProperties, StringComparer.OrdinalIgnoreCase),
+            }),
+            targetsToBuild: ["Build"]);
+        var result = BuildManager.DefaultBuildManager.BuildRequest(buildRequest);
+        Console.WriteLine($"Build result: {result.OverallResult}");
+        if (result.OverallResult != BuildResultCode.Success)
+        {
+            return;
+        }
+    }
+
+    BuildManager.DefaultBuildManager.EndBuild();
     projectCollection.Dispose();
 }
