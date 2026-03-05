@@ -13,22 +13,6 @@ BuildInMemoryProject();
 
 void BuildInMemoryProject()
 {
-    var projectText = """
-        <Project>
-
-            <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
-
-            <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework>
-                <ImplicitUsings>enable</ImplicitUsings>
-                <Nullable>enable</Nullable>
-            </PropertyGroup>
-
-            <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
-
-        </Project>
-        """;
-
     var loggers = new ILogger[]
     {
         new BinaryLogger { Parameters = "msbuild.binlog" },
@@ -45,21 +29,41 @@ void BuildInMemoryProject()
         ToolsetDefinitionLocations.Default
     );
 
-    ProjectRootElement projectRoot;
-    var projectDir = Path.Join(Environment.CurrentDirectory, "test");
-    Directory.CreateDirectory(projectDir);
-    var projectFilePath = Path.Join(Environment.CurrentDirectory, "test", "test.csproj");
-    if (args.Contains("--write"))
-    {
-        File.WriteAllText(projectFilePath, projectText);
-        projectRoot = ProjectRootElement.Open(projectFilePath, projectCollection);
-    }
-    else
-    {
-        var xmlReader = XmlReader.Create(new StringReader(projectText));
-        projectRoot = ProjectRootElement.Create(xmlReader, projectCollection);
-        projectRoot.FullPath = projectFilePath;
-    }
+    var projectRoot2 = createProjectRootElement("test2", """
+        <Project>
+
+            <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+            <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <Nullable>enable</Nullable>
+            </PropertyGroup>
+
+            <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+        </Project>
+        """);
+
+    var projectRoot = createProjectRootElement("test", """
+        <Project>
+
+            <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+            <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <ImplicitUsings>enable</ImplicitUsings>
+                <Nullable>enable</Nullable>
+            </PropertyGroup>
+
+            <ItemGroup>
+                <ProjectReference Include="test2.csproj" />
+            </ItemGroup>
+
+            <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+        </Project>
+        """);
 
     var buildParameters = new BuildParameters(projectCollection)
     {
@@ -115,4 +119,23 @@ void BuildInMemoryProject()
 
     BuildManager.DefaultBuildManager.EndBuild();
     projectCollection.Dispose();
+
+    ProjectRootElement createProjectRootElement(string name, string projectText)
+    {
+        var projectDir = Path.Join(Environment.CurrentDirectory, "test");
+        Directory.CreateDirectory(projectDir);
+
+        var projectFilePath = Path.Join(Environment.CurrentDirectory, "test", $"{name}.csproj");
+
+        if (args.Contains("--write"))
+        {
+            File.WriteAllText(projectFilePath, projectText);
+            return ProjectRootElement.Open(projectFilePath, projectCollection);
+        }
+
+        var xmlReader = XmlReader.Create(new StringReader(projectText));
+        var projectRoot = ProjectRootElement.Create(xmlReader, projectCollection);
+        projectRoot.FullPath = projectFilePath;
+        return projectRoot;
+    }
 }
